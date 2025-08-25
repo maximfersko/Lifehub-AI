@@ -1,0 +1,121 @@
+version: '3.9'
+
+services:
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - gateway
+    networks:
+      - lifehub-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - lifehub-network
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: gateway
+    environment:
+      - SPRING_PROFILES_ACTIVE=simple
+      - JWT_SECRET=${JWT_SECRET}
+    env_file:
+      - .env
+    depends_on:
+      - db
+    networks:
+      - lifehub-network
+
+  db:
+    image: postgres:15
+    container_name: db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DATABASE}
+      POSTGRES_USER: ${POSTGRES_USERNAME}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    env_file:
+      - .env
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "${PORT_DB}:5432"
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "${POSTGRES_USERNAME}" ]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+    networks:
+      - lifehub-network
+
+  pgbouncer:
+    build:
+      context: database/load_balancer
+      dockerfile: Dockerfile_bouncer
+    environment:
+      POSTGRES_USERNAME: ${POSTGRES_USERNAME}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGPOOL_PARAMS_BACKEND_HOSTNAME0: db
+    ports:
+      - "${PORT_BOUNCER}:6432"
+    depends_on:
+      - db
+    networks:
+      - lifehub-network
+
+  migrations:
+    image: liquibase/liquibase
+    volumes:
+      - ./migrations/changelog:/liquibase/changelog
+    environment:
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://${HOST_DB}:5432/${POSTGRES_DATABASE}
+      LIQUIBASE_COMMAND_USERNAME: ${POSTGRES_USERNAME}
+      LIQUIBASE_COMMAND_PASSWORD: ${POSTGRES_PASSWORD}
+      LIQUIBASE_COMMAND_CHANGELOG_FILE: changelog/db.changelog-master.xml
+    command: [ "update" ]
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - migrations
+    networks:
+      - lifehub-network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    ports:
+      - "${PGADMIN_PORT}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    logging:
+      driver: "none"
+    networks:
+      - lifehub-network
+
+
+
+networks:
+  lifehub-network:
+    driver: bridge
+
+volumes:
+  db_data:
+    driver: local
+  pgadmin_data:
+  redis_data:
