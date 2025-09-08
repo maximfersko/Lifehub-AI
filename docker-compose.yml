@@ -30,7 +30,7 @@ services:
       dockerfile: Dockerfile
     container_name: gateway
     environment:
-      - SPRING_PROFILES_ACTIVE=simple
+      - SPRING_PROFILES_ACTIVE=no-metrics
       - JWT_SECRET=${JWT_SECRET}
     env_file:
       - .env
@@ -108,6 +108,18 @@ services:
     networks:
       - lifehub-network
 
+  redis-insight:
+    image: redis/redisinsight:latest
+    container_name: fersko-redisinsight
+    restart: always
+    depends_on:
+      - redis
+    ports:
+      - "5540:5540"
+    volumes:
+      - redis-insight:/data
+    networks:
+      - lifehub-network
 
 
 networks:
@@ -119,3 +131,4 @@ volumes:
     driver: local
   pgadmin_data:
   redis_data:
+  redis-insight:

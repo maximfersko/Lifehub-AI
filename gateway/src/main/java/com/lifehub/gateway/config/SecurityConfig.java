@@ -19,9 +19,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.disable())
             .authorizeExchange(authz -> authz
-                // Public endpoints
                 .pathMatchers("/auth/**", "/health/**", "/actuator/**").permitAll()
-                // Protected endpoints
                 .pathMatchers("/news/**", "/goals/**", "/tasks/**").authenticated()
                 .anyExchange().permitAll()
             )

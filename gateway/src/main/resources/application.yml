@@ -63,6 +63,19 @@ management:
   endpoint:
     health:
       show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: false
+    binders:
+      processor:
+        enabled: false
+      jvm:
+        enabled: true
+      system:
+        enabled: true
+      logback:
+        enabled: true
 
 # Logging
 logging:
